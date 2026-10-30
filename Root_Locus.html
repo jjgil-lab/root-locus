@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1240, initial-scale=1.0">
+    <title>Lugar Geométrico de las Raíces (Root Locus)</title>
+    <!-- Tailwind CSS para el diseño de la interfaz -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617;
+            color: #f8fafc;
+            min-width: 1200px;
+        }
+        .font-mono {
+            font-family: 'JetBrains+Mono', monospace;
+        }
+        /* Personalización de la barra deslizadera (slider) */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+            margin-top: -6px;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: #374151;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-6">
+
+    <!-- Wrapper Principal Fijo a 1200px Centrado -->
+    <div class="w-[1200px] max-w-[1200px] min-w-[1200px] mx-auto flex flex-col gap-6">
+
+        <!-- Encabezado Principal -->
+        <header class="w-full flex justify-between items-center border-b border-slate-800 pb-4 flex-shrink-0">
+            <div>
+                <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-emerald-400">
+                    Lugar Geométrico de las Raíces (Root Locus)
+                </h1>
+                <p class="text-sm text-slate-400 mt-1">
+                    Sistema controlado con planta G(s) = 1 / [s(s+1)(s+2)] con control proporcional C(s) = K
+                </p>
+            </div>
+            <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl text-xs font-mono text-slate-300">
+                <span>Ecuación Característica:</span>
+                <span class="text-indigo-400 font-semibold">s³ + 3s² + 2s + K = 0</span>
+            </div>
+        </header>
+
+        <!-- Contenido Principal: Sidebar + Canvas del Plano s -->
+        <main class="w-full flex gap-6 items-start">
+            
+            <!-- Panel Izquierdo: Controles e Información del Sistema (380px de ancho) -->
+            <div class="w-[380px] flex-shrink-0 flex flex-col gap-5">
+                
+                <!-- Control de Ganancia K -->
+                <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur-sm">
+                    <div class="flex justify-between items-center mb-3">
+                        <label for="kSlider" class="text-sm font-semibold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            Ganancia (K)
+                        </label>
+                        <!-- Ajustado el ancho mínimo a 85px para acomodar 3 decimales correctamente -->
+                        <div class="bg-blue-950/80 border border-blue-800/50 text-blue-300 font-mono text-lg font-bold px-3 py-1 rounded-lg min-w-[85px] text-center" id="kValueDisplay">
+                            0.000
+                        </div>
+                    </div>
+
+                    <input type="range" id="kSlider" min="0" max="10" step="0.002" value="0" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer my-3 accent-blue-500">
+
+                    <div class="flex justify-between text-xs text-slate-500 font-mono">
+                        <span>K = 0.0</span>
+                        <span class="text-amber-500/80 font-bold">K = 6.0 (Límite)</span>
+                        <span>K = 10.0</span>
+                    </div>
+
+                    <!-- Botones de Presets Rápidos -->
+                    <div class="grid grid-cols-4 gap-2 mt-4">
+                        <button onclick="setK(0)" class="px-2 py-1.5 text-xs font-mono bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700/50">K=0</button>
+                        <button onclick="setK(0.385)" class="px-2 py-1.5 text-xs font-mono bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700/50">K=0.39</button>
+                        <button onclick="setK(6)" class="px-2 py-1.5 text-xs font-mono bg-amber-950/40 hover:bg-amber-900/40 text-amber-300 rounded-lg transition-colors border border-amber-800/40">K=6</button>
+                        <button onclick="setK(10)" class="px-2 py-1.5 text-xs font-mono bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700/50">K=10</button>
+                    </div>
+                </div>
+
+                <!-- Indicador de Estabilidad -->
+                <div id="stabilityBadge" class="bg-emerald-950/40 border border-emerald-800/50 rounded-2xl p-4 shadow-xl flex items-center gap-4 transition-all duration-300">
+                    <div id="statusIconContainer" class="p-3 bg-emerald-500/10 rounded-xl text-emerald-400 border border-emerald-500/20">
+                        <svg id="statusIcon" class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <div>
+                        <span id="statusTitle" class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Sistema Estable</span>
+                        <p id="statusDesc" class="text-xs text-slate-300 mt-0.5">Todos los polos están en el semiplano izquierdo ($\text{Re}(s) < 0$).</p>
+                    </div>
+                </div>
+
+                <!-- Panel con los valores de las Raíces / Polos Actuales -->
+                <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur-sm">
+                    <h3 class="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-4 flex items-center justify-between">
+                        <span>Polos del Sistema Controlado</span>
+                    </h3>
+
+                    <div class="space-y-2.5 font-mono text-xs">
+                        <div class="p-2.5 bg-slate-950/60 border border-slate-800/80 rounded-xl flex justify-between items-center">
+                            <span class="text-[#FF0000] font-bold flex items-center gap-1.5">
+                                <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="5,1 9,9 1,9" fill="#FF0000"/></svg>
+                                Polo 1:
+                            </span>
+                            <span id="pole1Val" class="text-slate-200 font-semibold">-</span>
+                        </div>
+                        <div class="p-2.5 bg-slate-950/60 border border-slate-800/80 rounded-xl flex justify-between items-center">
+                            <span class="text-[#FFFF00] font-bold flex items-center gap-1.5">
+                                <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="5,1 9,9 1,9" fill="#FFFF00"/></svg>
+                                Polo 2:
+                            </span>
+                            <span id="pole2Val" class="text-slate-200 font-semibold">-</span>
+                        </div>
+                        <div class="p-2.5 bg-slate-950/60 border border-slate-800/80 rounded-xl flex justify-between items-center">
+                            <span class="text-[#FFFFFF] font-bold flex items-center gap-1.5">
+                                <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="5,1 9,9 1,9" fill="#FFFFFF"/></svg>
+                                Polo 3:
+                            </span>
+                            <span id="pole3Val" class="text-slate-200 font-semibold">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Información Teórica Adicional -->
+                <div class="bg-slate-900/60 border border-slate-800/60 rounded-2xl p-4 text-xs text-slate-400 space-y-2">
+                    <p class="font-semibold text-slate-300">Puntos clave del LDR:</p>
+                    <ul class="list-disc list-inside space-y-1 text-slate-400">
+                        <li>Punto de ruptura: <span class="font-mono text-amber-300">s = -0.422</span> (K = 0.385)</li>
+                        <li>Corte con el eje imaginario en <span class="font-mono text-amber-300">s = ±1.414j</span> (K = 6)</li>
+                    </ul>
+                </div>
+
+            </div>
+
+            <!-- Panel Derecho: Canvas del Plano Complejo s (796px de ancho) -->
+            <div class="w-[796px] flex-shrink-0 bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl backdrop-blur-sm relative flex flex-col justify-between">
+                
+                <!-- Encabezado del Canvas -->
+                <div class="flex justify-between items-center mb-2 px-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                        <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">Plano de Laplace S</h2>
+                    </div>
+                    <span class="text-xs text-slate-400 font-mono">Eje X: Re(s) | Eje Y: Im(s)</span>
+                </div>
+
+                <!-- Canvas -->
+                <div class="relative w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-800">
+                    <canvas id="locusCanvas" width="764" height="520" class="block w-full h-[520px]"></canvas>
+                </div>
+
+                <!-- Leyenda del Canvas -->
+                <div class="mt-3 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-400 px-2 font-mono">
+                    <div class="flex items-center gap-2">
+                        <span class="text-blue-400 font-bold">✕</span>
+                        <span>Polos L(s)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <svg width="12" height="12" viewBox="0 0 10 10" class="inline-block"><polygon points="5,1 9,9 1,9" fill="#FF0000"/></svg>
+                        <svg width="12" height="12" viewBox="0 0 10 10" class="inline-block"><polygon points="5,1 9,9 1,9" fill="#FFFF00"/></svg>
+                        <svg width="12" height="12" viewBox="0 0 10 10" class="inline-block"><polygon points="5,1 9,9 1,9" fill="#FFFFFF"/></svg>
+                        <span>Polos Sistema Controlado Actuales</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-4 h-0.5 bg-blue-500 inline-block"></span>
+                        <span>Trayectoria LDR</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 bg-red-950/50 border border-red-800/50 inline-block rounded-sm"></span>
+                        <span>Zona Inestable</span>
+                    </div>
+                </div>
+
+            </div>
+
+        </main>
+
+    </div>
+
+    <!-- Script de Simulación y Visualización -->
+    <script>
+        // --- Referencias del DOM ---
+        const canvas   = document.getElementById('locusCanvas');
+        const ctx      = canvas.getContext('2d');
+        const kSlider  = document.getElementById('kSlider');
+        const kValueDisplay    = document.getElementById('kValueDisplay');
+        const [pole1Val, pole2Val, pole3Val] = [1, 2, 3].map(n => document.getElementById(`pole${n}Val`));
+        const stabilityBadge   = document.getElementById('stabilityBadge');
+        const statusIconContainer = document.getElementById('statusIconContainer');
+        const statusIcon       = document.getElementById('statusIcon');
+        const statusTitle      = document.getElementById('statusTitle');
+        const statusDesc       = document.getElementById('statusDesc');
+
+        // --- Geometría del lienzo ---
+        const CANVAS_WIDTH = 764, CANVAS_HEIGHT = 520;
+        canvas.width = CANVAS_WIDTH; canvas.height = CANVAS_HEIGHT;
+
+        const X_MIN = -3.8, X_MAX = 1.8;
+        const PX_PER_UNIT = CANVAS_WIDTH / (X_MAX - X_MIN);
+        const Y_MAX = (CANVAS_HEIGHT / PX_PER_UNIT) / 2, Y_MIN = -Y_MAX;
+        const originX = -X_MIN * PX_PER_UNIT, originY = CANVAS_HEIGHT / 2;
+
+        const POLE_COLORS  = ['#FF0000', '#FFFF00', '#FFFFFF'];
+        const GRID_FONT    = '10px "JetBrains Mono", monospace';
+        const PERMUTATIONS = [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]];
+
+        const toCanvasX = re  => originX + re  * PX_PER_UNIT;
+        const toCanvasY = im  => originY - im  * PX_PER_UNIT;
+        const complexDist = (a, b) => Math.hypot(a.re - b.re, a.im - b.im);
+
+        // --- Mejor permutación por mínima distancia total ---
+        function bestPermutation(refs, candidates) {
+            return PERMUTATIONS.reduce((best, perm) => {
+                const d = perm.reduce((sum, pi, j) => sum + complexDist(refs[j], candidates[pi]), 0);
+                return d < best.dist ? { perm, dist: d } : best;
+            }, { perm: PERMUTATIONS[0], dist: Infinity }).perm;
+        }
+
+        // --- Resolución cúbica analítica: s³ + 3s² + 2s + K = 0 ---
+        function solveCubicRaw(K) {
+            const p = -1, q = K;
+            const disc = q*q/4 + p*p*p/27;
+            if (disc > 0) {
+                const u = Math.cbrt(-q/2 + Math.sqrt(disc));
+                const v = Math.cbrt(-q/2 - Math.sqrt(disc));
+                const re2 = -(u+v)/2, im2 = (u-v)*Math.sqrt(3)/2;
+                return [{ re: u+v-1, im: 0 }, { re: re2-1, im: im2 }, { re: re2-1, im: -im2 }];
+            }
+            if (disc === 0) {
+                const u = Math.cbrt(-q/2);
+                return [{ re: 2*u-1, im: 0 }, { re: -u-1, im: 0 }, { re: -u-1, im: 0 }];
+            }
+            const r = Math.sqrt(-p*p*p/27), phi = Math.acos(-q/(2*r)), m = 2*Math.sqrt(-p/3);
+            return [0, 1, 2].map(k => ({ re: m * Math.cos((phi + 2*Math.PI*k) / 3) - 1, im: 0 }));
+        }
+
+        // --- Precálculo de las ramas del LDR (5000 pasos) ---
+        function calculateContinuousLocus() {
+            const steps = 5000, kMax = 10.0;
+            let current = [{ re:0, im:0 }, { re:-1, im:0 }, { re:-2, im:0 }];
+            const branches = current.map(p => [{ ...p, k: 0 }]);
+
+            for (let i = 1; i <= steps; i++) {
+                const kVal = (i / steps) * kMax;
+                const raw  = solveCubicRaw(kVal);
+                const perm = bestPermutation(current, raw);
+                current = perm.map(pi => raw[pi]);
+                current.forEach((p, j) => branches[j].push({ ...p, k: kVal }));
+            }
+            return branches;
+        }
+
+        const locusBranches = calculateContinuousLocus();
+
+        // --- Polos en tiempo real para cualquier K ---
+        function getPolesForK(K) {
+            if (K === 0) return [{ re:0, im:0 }, { re:-1, im:0 }, { re:-2, im:0 }];
+            const raw   = solveCubicRaw(K);
+            const steps = locusBranches[0].length - 1;
+            const idx   = Math.min(steps, Math.max(0, Math.round((K / 10.0) * steps)));
+            const refs  = locusBranches.map(b => b[idx]);
+            const perm  = bestPermutation(refs, raw);
+            return perm.map(pi => raw[pi]);
+        }
+
+        // --- Triángulo equilátero ---
+        function drawTriangle(x, y, size, color) {
+            ctx.fillStyle = color; ctx.strokeStyle = '#020617'; ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x, y - size);
+            ctx.lineTo(x + size * 0.866, y + size * 0.5);
+            ctx.lineTo(x - size * 0.866, y + size * 0.5);
+            ctx.closePath();
+            ctx.fill(); ctx.stroke();
+        }
+
+        // --- Renderizado principal ---
+        function drawScene(currentK) {
+            // Fondo
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+            // Semiplano inestable
+            ctx.fillStyle = 'rgba(153,27,27,0.12)';
+            ctx.fillRect(toCanvasX(0), 0, CANVAS_WIDTH - toCanvasX(0), CANVAS_HEIGHT);
+
+            // Cuadrícula y etiquetas
+            ctx.font = GRID_FONT;
+            ctx.lineWidth = 1; ctx.strokeStyle = '#1e293b'; ctx.fillStyle = '#64748b';
+            for (let x = Math.ceil(X_MIN / 0.5) * 0.5; x <= X_MAX; x += 0.5) {
+                const cx = toCanvasX(x);
+                ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, CANVAS_HEIGHT); ctx.stroke();
+                if (Math.abs(x) > 0.01) ctx.fillText(x.toFixed(1), cx - 10, originY + 15);
+            }
+            for (let y = Math.ceil(Y_MIN / 0.5) * 0.5; y <= Y_MAX; y += 0.5) {
+                const cy = toCanvasY(y);
+                ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(CANVAS_WIDTH, cy); ctx.stroke();
+                if (Math.abs(y) > 0.01) ctx.fillText((y > 0 ? '+' : '') + y.toFixed(1) + 'j', originX + 8, cy + 3);
+            }
+
+            // Ejes principales
+            ctx.lineWidth = 2; ctx.strokeStyle = '#475569';
+            ctx.beginPath(); ctx.moveTo(0, originY);  ctx.lineTo(CANVAS_WIDTH, originY); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(originX, 0);  ctx.lineTo(originX, CANVAS_HEIGHT); ctx.stroke();
+            ctx.fillStyle = '#64748b';
+            ctx.fillText('0', originX - 12, originY + 15);
+
+            // Trayectorias LDR
+            ctx.lineWidth = 2.5; ctx.strokeStyle = '#3b82f6';
+            locusBranches.forEach(branch => {
+                ctx.beginPath();
+                branch.forEach((pt, i) => {
+                    const cx = toCanvasX(pt.re), cy = toCanvasY(pt.im);
+                    i === 0 ? ctx.moveTo(cx, cy) : ctx.lineTo(cx, cy);
+                });
+                ctx.stroke();
+            });
+
+            // Polos en lazo abierto (K=0) — aspas azules
+            ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 3;
+            [0, -1, -2].forEach(re => {
+                const cx = toCanvasX(re), cy = toCanvasY(0);
+                ctx.beginPath();
+                ctx.moveTo(cx-7, cy-7); ctx.lineTo(cx+7, cy+7);
+                ctx.moveTo(cx+7, cy-7); ctx.lineTo(cx-7, cy+7);
+                ctx.stroke();
+            });
+
+            // Polos en bucle cerrado — triángulos de colores
+            const currentRoots = getPolesForK(currentK);
+            currentRoots.forEach((pole, i) =>
+                drawTriangle(toCanvasX(pole.re), toCanvasY(pole.im), 9, POLE_COLORS[i])
+            );
+
+            updateInfoUI(currentK, currentRoots);
+        }
+
+        // --- Formato de número complejo ---
+        function formatComplex({ re, im }) {
+            if (Math.abs(im) < 0.001) return re.toFixed(3);
+            return `${re.toFixed(3)} ${im >= 0 ? '+' : '-'} ${Math.abs(im).toFixed(3)}j`;
+        }
+
+        // --- Actualización del panel lateral ---
+        function updateInfoUI(K, roots) {
+            kValueDisplay.innerText = K.toFixed(3);
+            [pole1Val, pole2Val, pole3Val].forEach((el, i) => el.innerText = formatComplex(roots[i]));
+
+            const maxReal = Math.max(...roots.map(r => r.re));
+            const margin  = 0.001;
+            const states  = {
+                neutral:  { bg: 'slate',   title: 'Sin ganancia aplicada',          desc: 'Mueve el slider para evaluar la estabilidad.', icon: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+                stable:   { bg: 'emerald', title: 'Sistema Estable',                desc: 'Todos los polos tienen parte real negativa.',  icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+                marginal: { bg: 'amber',   title: 'Sistema Marginalmente Estable',  desc: 'Algún polo está sobre el eje imaginario.',     icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+                unstable: { bg: 'red',     title: 'Sistema Inestable',              desc: 'Existen polos con parte real positiva.',       icon: 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z' }
+            };
+            const s = K === 0 ? states.neutral : maxReal < -margin ? states.stable : Math.abs(maxReal) <= margin ? states.marginal : states.unstable;
+            const c = s.bg;
+            stabilityBadge.className      = `bg-${c}-950/40 border border-${c}-800/50 rounded-2xl p-4 shadow-xl flex items-center gap-4 transition-all duration-300`;
+            statusIconContainer.className = `p-3 bg-${c}-500/10 rounded-xl text-${c}-400 border border-${c}-500/20`;
+            statusTitle.className         = `text-xs font-semibold uppercase tracking-wider text-${c}-400`;
+            statusIcon.innerHTML          = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${s.icon}"/>`;
+            statusTitle.innerText         = s.title;
+            statusDesc.innerText          = s.desc;
+        }
+
+        // --- Controles ---
+        const setK = val => { kSlider.value = val; drawScene(parseFloat(val)); };
+        kSlider.addEventListener('input', e => drawScene(parseFloat(e.target.value)));
+
+        // Primer dibujo: esperar a que JetBrains Mono esté disponible
+        window.onload = () => document.fonts.load(GRID_FONT).then(() => drawScene(0));
+    </script>
+</body>
+</html>
